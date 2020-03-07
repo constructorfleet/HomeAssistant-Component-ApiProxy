@@ -5,7 +5,6 @@
   "requirements": [
   ],
   "dependencies": [
-    "mqtt",
     "http"
   ],
   "codeowners": [
