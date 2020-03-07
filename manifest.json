@@ -1,0 +1,14 @@
+{
+  "domain": "api_proxy",
+  "name": "API Proxy",
+  "documentation": "https://github.com/constructorfleet/HomeAssistant-Component-APIProxy",
+  "requirements": [
+  ],
+  "dependencies": [
+    "mqtt",
+    "http"
+  ],
+  "codeowners": [
+    "@teagan42"
+  ]
+}
