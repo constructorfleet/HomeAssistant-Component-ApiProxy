@@ -84,7 +84,8 @@ CONFIG_SCHEMA = vol.Schema({
             cv.ensure_list,
             [valid_subscribe_topic]),
         vol.Optional(ARG_PUBLISH_REQUEST_ROUTES_TOPIC): valid_publish_topic,
-        vol.Optional(ARG_INSTANCE_HOSTNAME_PREFIX, default=DEFAULT_HOSTNAME_PREFIX): cv.slug,
+        vol.Optional(ARG_INSTANCE_HOSTNAME_PREFIX,
+                     default=DEFAULT_HOSTNAME_PREFIX): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
             VALID_CASINGS)
     }),
