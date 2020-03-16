@@ -182,7 +182,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 
     # Only subscribe if you specified a topic
     for topic in conf.get(ARG_SUBSCRIBE_ROUTE_TOPIC, []):
-        await mqtt.async_subscribe(topic, _event_receiver)
+        await mqtt.async_subscribe(hass, topic, _event_receiver)
 
     if conf.get(ARG_PUBLISH_REQUEST_ROUTES_TOPIC):
         # Request remote instance routes on start up
