@@ -16,6 +16,7 @@ from aiohttp import web, hdrs
 from aiohttp.web import Response
 from homeassistant.components import mqtt
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http.auth import SIGN_QUERY_PARAM
 from homeassistant.components.mqtt import valid_subscribe_topic, valid_publish_topic
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -52,6 +53,7 @@ ATTR_INSTANCE_NAME = 'instance_name'
 ATTR_INSTANCE_IP = 'instance_ip'
 ATTR_INSTANCE_PORT = 'instance_port'
 ATTR_INSTANCE_HOSTNAME = 'instance_hostname'
+ATTR_SIGNATURE = 'signature'
 ATTR_PROXY = 'proxy'
 ATTR_RESPONSE = 'result'
 ATTR_STATUS = 'status'
@@ -153,6 +155,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
                 conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
             proxy_instance_port,
+            proxy_api_event.get(ATTR_SIGNATURE, None),
             proxy_route
         )
         existing_proxy = hass.data[DOMAIN].get(proxy_method, {}).get(proxy_route, None)
@@ -203,11 +206,12 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 class ProxyData:
     """Container for proxy data."""
 
-    def __init__(self, hass, method, host, port, route):
+    def __init__(self, hass, method, host, port, signature, route):
         self._hass = hass
         self.method = method
         self.host = host
         self.port = port
+        self.signature = signature
         self.route = route
         self._session = async_get_clientsession(self._hass, False)
 
@@ -226,18 +230,22 @@ class ProxyData:
                             self.method)
             return Response(body="Proxy route not found", status=404)
 
+        params = request.query.copy()
+        if self.signature is not None:
+            params.append(SIGN_QUERY_PARAM, self.signature)
+
         try:
             if self.method in HTTP_METHODS_WITH_PAYLOAD:
                 result = await request_method(
                     proxy_url,
                     json=await request.json(),
-                    params=request.query,
+                    params=params,
                     headers=headers
                 )
             else:
                 result = await request_method(
                     proxy_url,
-                    params=request.query,
+                    params=params,
                     headers=headers
                 )
 
@@ -285,6 +293,7 @@ class ProxyData:
             self.method,
             self.host,
             self.port,
+            self.signature,
             route
         )
 
