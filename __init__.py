@@ -189,10 +189,10 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         mqtt.async_publish(
             hass,
             conf[ARG_PUBLISH_REQUEST_ROUTES_TOPIC],
-            {
+            json.dumps({
                 ATTR_EVENT_TYPE: EVENT_TYPE_REQUEST_ROUTES,
                 ATTR_EVENT_DATA: {}
-            },
+            }),
             0,
             retain=True)
 
