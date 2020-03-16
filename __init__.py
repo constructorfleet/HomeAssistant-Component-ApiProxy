@@ -133,82 +133,70 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
     for method in HTTP_METHODS:
         hass.data[DOMAIN][method] = {}
 
-    hass.data[DOMAIN]['listener'] = RemoteApiRegistrationListener(
-        hass,
-        conf[ARG_SUBSCRIBE_ROUTE_TOPIC],
-        conf.get(ARG_PUBLISH_REQUEST_ROUTES_TOPIC),
-        conf[ARG_INSTANCE_HOSTNAME_PREFIX],
-        conf[ARG_INSTANCE_HOSTNAME_CASING])
+    def _register_proxy(proxy_api_event):
+        """Registers a proxy received over MQTT."""
+        proxy_route = proxy_api_event.get(ATTR_ROUTE)
+        proxy_method = proxy_api_event.get(ATTR_METHOD)
+        proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME)
+        proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
+        if not proxy_route or \
+                not proxy_method or \
+                not proxy_instance_name or \
+                proxy_route.startswith('http') or \
+                '/local' in proxy_route:
+            return
+        proxy_data = ProxyData(
+            hass,
+            proxy_method,
+            _build_instance_hostname(
+                proxy_instance_name,
+                conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
+                conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
+            proxy_instance_port,
+            proxy_route
+        )
+        existing_proxy = hass.data[DOMAIN].get(proxy_method, {}).get(proxy_route, None)
+        if existing_proxy:
+            existing_proxy.add_proxy(proxy_data)
+        else:
+            proxy_class = _construct_api_proxy_class(hass, proxy_data)
+
+            hass.data[DOMAIN][proxy_method][proxy_route] = proxy_class
+            if not proxy_route.startswith(ROUTE_PREFIX_SERVICE_CALL):
+                for resource in [resource for resource in hass.http.app.router._resources if
+                                 resource.canonical == proxy_route]:
+                    hass.http.app.router._resources.remove(resource)
+            hass.http.register_view(proxy_route)
+
+    @callback
+    def _event_receiver(msg):
+        """Receive events published by and fire them on this hass instance."""
+        event = json.loads(msg.payload)
+        event_type = event.get(ATTR_EVENT_TYPE)
+        event_data = event.get(ATTR_EVENT_DATA)
+
+        if not event_type or event_type != EVENT_TYPE_ROUTE_REGISTERED:
+            return
+
+        _register_proxy(event_data)
+
+    # Only subscribe if you specified a topic
+    for topic in conf.get(ARG_SUBSCRIBE_ROUTE_TOPIC, []):
+        await mqtt.async_subscribe(topic, _event_receiver)
+
+    if conf.get(ARG_PUBLISH_REQUEST_ROUTES_TOPIC):
+        # Request remote instance routes on start up
+        mqtt.async_publish(
+            hass,
+            conf[ARG_PUBLISH_REQUEST_ROUTES_TOPIC],
+            {
+                ATTR_EVENT_TYPE: EVENT_TYPE_REQUEST_ROUTES,
+                ATTR_EVENT_DATA: {}
+            },
+            0,
+            retain=True)
 
     return True
-
-
-class RemoteApiRegistrationListener:
-    """A Websocket connection to a remote home-assistant instance."""
-
-    def __init__(self, hass, subscribe_topics, publish_topic, host_prefix, host_casing):
-        """Initialize the connection."""
-        self._hass = hass
-
-        def _register_proxy(proxy_api_event):
-            """Registers a proxy received over MQTT."""
-            proxy_route = proxy_api_event.get(ATTR_ROUTE)
-            proxy_method = proxy_api_event.get(ATTR_METHOD)
-            proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME)
-            proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
-            if not proxy_route or \
-                    not proxy_method or \
-                    not proxy_instance_name or \
-                    proxy_route.startswith('http') or \
-                    '/local' in proxy_route:
-                return
-            proxy_data = ProxyData(
-                hass,
-                proxy_method,
-                _build_instance_hostname(proxy_instance_name, host_prefix, host_casing),
-                proxy_instance_port,
-                proxy_route
-            )
-            existing_proxy = hass.data[DOMAIN].get(proxy_method, {}).get(proxy_route, None)
-            if existing_proxy:
-                existing_proxy.add_proxy(proxy_data)
-            else:
-                proxy_class = _construct_api_proxy_class(hass, proxy_data)
-
-                hass.data[DOMAIN][proxy_method][proxy_route] = proxy_class
-                if not proxy_route.startswith(ROUTE_PREFIX_SERVICE_CALL):
-                    for resource in [resource for resource in hass.http.app.router._resources if
-                                     resource.canonical == proxy_route]:
-                        hass.http.app.router._resources.remove(resource)
-                hass.http.register_view(proxy_route)
-
-        @callback
-        def _event_receiver(msg):
-            """Receive events published by and fire them on this hass instance."""
-            event = json.loads(msg.payload)
-            event_type = event.get(ATTR_EVENT_TYPE)
-            event_data = event.get(ATTR_EVENT_DATA)
-
-            if not event_type or event_type != EVENT_TYPE_ROUTE_REGISTERED:
-                return
-
-            _register_proxy(event_data)
-
-        # Only subscribe if you specified a topic
-        for topic in subscribe_topics or []:
-            yield from mqtt.async_subscribe(topic, _event_receiver)
-
-        if publish_topic:
-            # Request remote instance routes on start up
-            mqtt.async_publish(
-                hass,
-                publish_topic,
-                {
-                    ATTR_EVENT_TYPE: EVENT_TYPE_REQUEST_ROUTES,
-                    ATTR_EVENT_DATA: {}
-                },
-                0,
-                retain=True)
 
 
 # pylint: disable=too-many-arguments
