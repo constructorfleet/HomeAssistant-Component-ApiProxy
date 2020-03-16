@@ -136,7 +136,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
     def _register_proxy(proxy_api_event):
         """Registers a proxy received over MQTT."""
         proxy_route = proxy_api_event.get(ATTR_ROUTE)
-        proxy_method = proxy_api_event.get(ATTR_METHOD)
+        proxy_method = proxy_api_event.get(ATTR_METHOD, '').lower()
         proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME)
         proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
         if not proxy_route or \
@@ -328,7 +328,7 @@ class AbstractRemoteApiProxy(HomeAssistantView):
         self._host = proxy.host
         self._port = proxy.port
 
-        self._session = proxy.session
+        self._session = proxy._session
         self.add_proxy(proxy.copy_with_route(self.url))
 
     def add_proxy(self,
