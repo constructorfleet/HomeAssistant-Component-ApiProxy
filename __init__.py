@@ -166,7 +166,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
                 for resource in [resource for resource in hass.http.app.router._resources if
                                  resource.canonical == proxy_route]:
                     hass.http.app.router._resources.remove(resource)
-            hass.http.register_view(proxy_route)
+            hass.http.register_view(proxy_data)
 
     @callback
     def _event_receiver(msg):
