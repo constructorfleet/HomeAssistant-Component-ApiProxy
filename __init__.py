@@ -110,8 +110,7 @@ def _construct_api_proxy_class(hass, proxy_data):
         "delete": DeleteRemoteApiProxy,
         "put": PutRemoteApiProxy,
         "patch": PatchRemoteApiProxy,
-        "head": HeadRemoteApiProxy,
-        "options": OptionsRemoteApiProxy
+        "head": HeadRemoteApiProxy
     }.get(proxy_data.method, None)
 
     if not proxy_class:
@@ -418,13 +417,5 @@ class HeadRemoteApiProxy(AbstractRemoteApiProxy):
     """API proxy HEAD requests."""
 
     async def head(self, request, **kwargs):
-        """Perform proxy."""
-        return await self.perform_proxy(request, **kwargs)
-
-
-class OptionsRemoteApiProxy(AbstractRemoteApiProxy):
-    """API proxy OPTIONS requests."""
-
-    async def options(self, request, **kwargs):
         """Perform proxy."""
         return await self.perform_proxy(request, **kwargs)
