@@ -332,8 +332,6 @@ class AbstractRemoteApiProxy(HomeAssistantView):
         self.name = self.url.replace('/', ':')[1:]
         self._hass = hass
         self._method = proxy.method
-        self._host = proxy.host
-        self._port = proxy.port
 
         self._session = proxy._session
         self.add_proxy(proxy.copy_with_route(self.url))
@@ -341,6 +339,7 @@ class AbstractRemoteApiProxy(HomeAssistantView):
     def add_proxy(self,
                   proxy):
         """Adds a proxy to the set."""
+        self.proxies.remove(proxy)
         self.proxies.add(proxy)
 
     async def perform_proxy(self, request, **kwargs):
