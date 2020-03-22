@@ -74,7 +74,7 @@ disable=print-statement,
         bad-inline-option,
         locally-disabled,
         file-ignored,
-        protected-access,
+
         suppressed-message,
         useless-suppression,
         deprecated-pragma,
