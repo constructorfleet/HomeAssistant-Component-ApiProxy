@@ -97,10 +97,11 @@ def _build_instance_hostname(instance_name, prefix, casing):
     concatenated_hostname = '%s%s' % (prefix, instance_name)
     if casing == CASING_LOWER:
         return concatenated_hostname.lower()
-    elif casing == CASING_UPPER:
+
+    if casing == CASING_UPPER:
         return concatenated_hostname.upper()
-    else:
-        return concatenated_hostname
+
+    return concatenated_hostname
 
 
 def _construct_api_proxy_class(hass, proxy_data):
@@ -114,7 +115,7 @@ def _construct_api_proxy_class(hass, proxy_data):
     }.get(proxy_data.method, None)
 
     if not proxy_class:
-        return
+        return None
 
     return proxy_class(
         hass,
