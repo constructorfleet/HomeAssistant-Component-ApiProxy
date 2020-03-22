@@ -162,6 +162,9 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         else:
             proxy_class = _construct_api_proxy_class(hass, proxy_data)
 
+            if proxy_class is None:
+                return
+
             hass.data[DOMAIN][proxy_method][proxy_route] = proxy_class
             if not proxy_route.startswith(ROUTE_PREFIX_SERVICE_CALL):
                 for resource in [resource for resource in hass.http.app.router._resources if
@@ -339,7 +342,7 @@ class AbstractRemoteApiProxy(HomeAssistantView):
                   proxy):
         """Adds a proxy to the set."""
         if proxy in self.proxies:
-            self.proxies.remove(proxy) # Update token, etc.
+            self.proxies.remove(proxy)  # Update token, etc.
         self.proxies.add(proxy)
 
     async def perform_proxy(self, request, **kwargs):
