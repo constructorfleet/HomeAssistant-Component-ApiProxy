@@ -6,6 +6,7 @@ https://github.com/constructorfleet/HomeAssistant-Component-RemoteInstance
 """
 
 import asyncio
+import itertools
 import json
 import logging
 from json import JSONDecodeError
@@ -45,6 +46,8 @@ DOMAIN = 'api_proxy'
 
 EVENT_TYPE_REQUEST_ROUTES = 'request_routes'
 EVENT_TYPE_ROUTE_REGISTERED = 'route_registered'
+EVENT_TYPE_INSTANCE_CONNECTED = 'instance_state.connected'
+EVENT_TYPE_INSTANCE_DISCONNECTED = 'instance_state.disconnected'
 
 ATTR_ROUTE = 'route'
 ATTR_METHOD = 'method'
@@ -123,6 +126,11 @@ def _construct_api_proxy_class(hass, proxy_data):
     )
 
 
+def _flatten_dict_values(nested_dict):
+    return list(itertools.chain(
+        *[list(itertools.chain(*list(value.values()))) for value in nested_dict.values()]))
+
+
 async def async_setup(hass: HomeAssistantType, config: ConfigType):
     """Set up the api proxy component."""
     conf = config.get(DOMAIN)
@@ -138,7 +146,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         """Registers a proxy received over MQTT."""
         proxy_route = proxy_api_event.get(ATTR_ROUTE)
         proxy_method = proxy_api_event.get(ATTR_METHOD, '').lower()
-        proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME)
+        proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME).lower()
         proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
         if not proxy_route or \
                 not proxy_method or \
@@ -148,6 +156,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             return
         proxy_data = ProxyData(
             hass,
+            proxy_instance_name,
             proxy_method,
             _build_instance_hostname(
                 proxy_instance_name,
@@ -180,10 +189,39 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         event_type = event.get(ATTR_EVENT_TYPE)
         event_data = event.get(ATTR_EVENT_DATA)
 
-        if not event_type or event_type != EVENT_TYPE_ROUTE_REGISTERED:
+        if event_type == EVENT_TYPE_ROUTE_REGISTERED:
+            _register_proxy(event_data)
             return
 
-        _register_proxy(event_data)
+        if event_type == EVENT_TYPE_INSTANCE_CONNECTED:
+            request_routes(event_data)
+            return
+
+        if event_type == EVENT_TYPE_INSTANCE_DISCONNECTED:
+            remove_routes(event_data)
+            return
+
+    def remove_routes(instance_name):
+        if instance_name is None:
+            return
+
+        for proxy_class in _flatten_dict_values(hass.data[DOMAIN]):
+            proxy_class.remove_proxies_for_instance(instance_name)
+
+    def request_routes(instance_name=None):
+        event_data = {}
+        if instance_name is not None:
+            event_data[ATTR_INSTANCE_NAME] = instance_name
+
+        mqtt.async_publish(
+            hass,
+            conf[ARG_PUBLISH_REQUEST_ROUTES_TOPIC],
+            json.dumps({
+                ATTR_EVENT_TYPE: EVENT_TYPE_REQUEST_ROUTES,
+                ATTR_EVENT_DATA: event_data
+            }),
+            0,
+            retain=True)
 
     # Only subscribe if you specified a topic
     for topic in conf.get(ARG_SUBSCRIBE_ROUTE_TOPIC, []):
@@ -191,15 +229,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 
     if conf.get(ARG_PUBLISH_REQUEST_ROUTES_TOPIC):
         # Request remote instance routes on start up
-        mqtt.async_publish(
-            hass,
-            conf[ARG_PUBLISH_REQUEST_ROUTES_TOPIC],
-            json.dumps({
-                ATTR_EVENT_TYPE: EVENT_TYPE_REQUEST_ROUTES,
-                ATTR_EVENT_DATA: {}
-            }),
-            0,
-            retain=True)
+        request_routes()
 
     return True
 
@@ -208,8 +238,9 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 class ProxyData:
     """Container for proxy data."""
 
-    def __init__(self, hass, method, host, port, token, route):
+    def __init__(self, hass, instance_name, method, host, port, token, route):
         self._hass = hass
+        self.instance_name = instance_name
         self.method = method
         self.host = host
         self.port = port
@@ -345,6 +376,12 @@ class AbstractRemoteApiProxy(HomeAssistantView):
         if proxy in self.proxies:
             self.proxies.remove(proxy)  # Update token, etc.
         self.proxies.add(proxy)
+
+    def remove_proxies_for_instance(self, instance_name):
+        original_set = self.proxies.copy()
+        for proxy in [proxy for proxy in original_set if
+                      proxy.instance_name.lower() == instance_name.lower()]:
+            self.proxies.remove(proxy)
 
     async def perform_proxy(self, request, **kwargs):
         """Proxies the request to the remote instance."""
