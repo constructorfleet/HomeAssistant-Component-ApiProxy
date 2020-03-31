@@ -235,6 +235,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 
 
 # pylint: disable=too-many-arguments
+# pylint: disable=too-many-instance-attributes
 class ProxyData:
     """Container for proxy data."""
 
@@ -322,6 +323,7 @@ class ProxyData:
         """Creates a new ProxyData with the specified route."""
         return ProxyData(
             self._hass,
+            self.instance_name,
             self.method,
             self.host,
             self.port,
@@ -378,6 +380,7 @@ class AbstractRemoteApiProxy(HomeAssistantView):
         self.proxies.add(proxy)
 
     def remove_proxies_for_instance(self, instance_name):
+        """Remove all proxies for the given instance."""
         original_set = self.proxies.copy()
         for proxy in [proxy for proxy in original_set if
                       proxy.instance_name.lower() == instance_name.lower()]:
