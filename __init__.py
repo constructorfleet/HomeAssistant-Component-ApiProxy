@@ -202,6 +202,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             return
 
     def remove_routes(instance_name):
+        """Remove specified routes from proxy engine."""
         if instance_name is None:
             return
 
@@ -209,6 +210,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             proxy_class.remove_proxies_for_instance(instance_name)
 
     def request_routes(instance_name=None):
+        """Handle when all registered routes are requested."""
         event_data = {}
         if instance_name is not None:
             event_data[ATTR_INSTANCE_NAME] = instance_name
