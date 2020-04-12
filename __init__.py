@@ -15,6 +15,7 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from aiohttp import web, hdrs
 from aiohttp.web import Response
+from aiohttp.web_urldispatcher import AbstractResource
 from homeassistant.components import mqtt
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.components.mqtt import valid_subscribe_topic, valid_publish_topic
@@ -142,18 +143,51 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
     for method in HTTP_METHODS:
         hass.data[DOMAIN][method] = {}
 
+    def _proxy_data_from_existing_resource_route(route, canonical_path):
+        return ProxyData(
+            hass,
+            hass.config.location_name,
+            route.method.lower,
+            "127.0.0.1",
+            hass.http.server_port,
+            None,
+            canonical_path
+        )
+
+    def _convert_instance_resources_to_proxies(proxy_route):
+        for resource in [resource for resource in hass.http.app.router._resources if
+                         resource.canonical == proxy_route]:
+            hass.http.app.router._resources.remove(resource)
+            for route in resource:
+                route_method = route.method.lower()
+                existing_proxy = hass.data[DOMAIN][route_method].get(proxy_route, None)
+
+                if existing_proxy:
+                    existing_proxy.add_proxy(
+                        _proxy_data_from_existing_resource_route(route, resource.canonical))
+                else:
+                    route_proxy_class = _construct_api_proxy_class(
+                        hass,
+                        _proxy_data_from_existing_resource_route(route, resource.canonical))
+
+                    if route_proxy_class is None:
+                        continue
+
+                    hass.data[DOMAIN][route_method][proxy_route] = route_proxy_class
+                    hass.http.register_view(route_proxy_class)
+
     def _register_proxy(proxy_api_event):
         """Registers a proxy received over MQTT."""
         proxy_route = proxy_api_event.get(ATTR_ROUTE)
         proxy_method = proxy_api_event.get(ATTR_METHOD, '').lower()
         proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME).lower()
         proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
-        if not proxy_route or \
-                not proxy_method or \
-                not proxy_instance_name or \
-                proxy_route.startswith('http') or \
-                '/local' in proxy_route:
+        if not proxy_route or not proxy_method or not proxy_instance_name:
             return
+
+        _convert_instance_resources_to_proxies(proxy_route)
+
+        existing_proxy = hass.data[DOMAIN].get(proxy_method, {}).get(proxy_route, None)
         proxy_data = ProxyData(
             hass,
             proxy_instance_name,
@@ -166,7 +200,6 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             proxy_api_event.get(ATTR_TOKEN, None),
             proxy_route
         )
-        existing_proxy = hass.data[DOMAIN].get(proxy_method, {}).get(proxy_route, None)
         if existing_proxy:
             existing_proxy.add_proxy(proxy_data)
         else:
@@ -175,11 +208,6 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             if proxy_class is None:
                 return
 
-            hass.data[DOMAIN][proxy_method][proxy_route] = proxy_class
-            if not proxy_route.startswith(ROUTE_PREFIX_SERVICE_CALL):
-                for resource in [resource for resource in hass.http.app.router._resources if
-                                 resource.canonical == proxy_route]:
-                    hass.http.app.router._resources.remove(resource)
             hass.http.register_view(proxy_class)
 
     @callback
@@ -241,7 +269,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
 class ProxyData:
     """Container for proxy data."""
 
-    def __init__(self, hass, instance_name, method, host, port, token, route):
+    def __init__(self, hass, instance_name, method, host, port, token, route, handler=None):
         self._hass = hass
         self.instance_name = instance_name
         self.method = method
@@ -249,6 +277,7 @@ class ProxyData:
         self.port = port
         self.token = token
         self.route = route
+        self.handler = handler
         self._session = async_get_clientsession(self._hass, False)
 
     def get_url(self, path):
@@ -257,6 +286,9 @@ class ProxyData:
 
     async def perform_proxy(self, request):
         """Forward request to the remote instance."""
+        if self.handler is not None:
+            return await self.handler(request)
+
         headers = {}
         if self.token is not None:
             headers[hdrs.AUTHORIZATION] = 'Bearer %s' % self.token
