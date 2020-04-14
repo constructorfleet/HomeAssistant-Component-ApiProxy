@@ -62,7 +62,7 @@ ATTR_RESPONSE = 'result'
 ATTR_STATUS = 'status'
 ATTR_BODY = 'body'
 ATTR_EVENT_TYPE = "event_type"
-ATTR_EVENT_DATA = "event_data"
+ATTR_EVENT_DATA = "data"
 
 DATA_PROXIES = 'proxies'
 
