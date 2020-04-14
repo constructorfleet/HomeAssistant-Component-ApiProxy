@@ -222,11 +222,11 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             return
 
         if event_type == EVENT_TYPE_INSTANCE_CONNECTED:
-            request_routes(event_data)
+            request_routes(event_data.get(ATTR_INSTANCE_NAME, None))
             return
 
         if event_type == EVENT_TYPE_INSTANCE_DISCONNECTED:
-            remove_routes(event_data)
+            remove_routes(event_data.get(ATTR_INSTANCE_NAME, None))
             return
 
     def remove_routes(instance_name):
