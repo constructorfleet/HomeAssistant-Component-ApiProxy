@@ -15,7 +15,6 @@ import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from aiohttp import web, hdrs
 from aiohttp.web import Response
-from aiohttp.web_urldispatcher import AbstractResource
 from homeassistant.components import mqtt
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.components.mqtt import valid_subscribe_topic, valid_publish_topic
@@ -426,15 +425,15 @@ class AbstractRemoteApiProxy(HomeAssistantView):
         exact_match_proxies = [proxy for proxy in self.proxies if
                                proxy.is_exact_match(self._method, route)]
         if len(exact_match_proxies) != 0:
-            _LOGGER.warning("Found %s proxies for %s",
-                            str(exact_match_proxies),
-                            route)
+            _LOGGER.debug("Found %s proxies for %s",
+                          str(exact_match_proxies),
+                          route)
             results = await asyncio.gather(
                 *[proxy.perform_proxy(request) for proxy in exact_match_proxies])
         else:
-            _LOGGER.warning("Using %s proxies for %s",
-                            str(self.proxies),
-                            route)
+            _LOGGER.debug("Using %s proxies for %s",
+                          str(self.proxies),
+                          route)
             results = await asyncio.gather(
                 *[proxy.perform_proxy(request) for proxy in self.proxies])
 
