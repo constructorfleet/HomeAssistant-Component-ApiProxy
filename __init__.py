@@ -404,8 +404,8 @@ class ProxyData:
     def __eq__(self, other):
         if isinstance(other, ProxyData):
             return ((self.host == other.host) or (
-                    self.host == other.host
-                    and self.port == other.port)) and self.method == other.method
+                        self.host == other.host and self.port == other.port)) \
+                   and self.method == other.method
         return False
 
     def __hash__(self):
@@ -520,7 +520,7 @@ class PatchRemoteApiProxy(AbstractRemoteApiProxy):
 
     async def delete(self, request, **kwargs):
         """Perform proxy."""
-        return await self.perform_proxy (request, **kwargs)
+        return await self.perform_proxy(request, **kwargs)
 
 
 class HeadRemoteApiProxy(AbstractRemoteApiProxy):
