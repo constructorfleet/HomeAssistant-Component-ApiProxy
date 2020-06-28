@@ -205,7 +205,6 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
                 conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_POSTFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
-            proxy_instance_port,
             proxy_api_event.get(ATTR_TOKEN, None),
             proxy_route
         )
@@ -291,7 +290,7 @@ class ProxyData:
 
     def get_url(self, path):
         """Get route to connect to."""
-        return '%s://%s:%s%s' % ('http', self.host, self.port, path)
+        return '%s:%s%s' % (self.host, self.port, path)
 
     async def perform_proxy(self, request):
         """Forward request to the remote instance."""
