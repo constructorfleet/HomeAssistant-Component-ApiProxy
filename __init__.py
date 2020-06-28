@@ -107,6 +107,7 @@ CONFIG_SCHEMA = vol.Schema({
 
 
 def is_url(url):
+    """Check if url is valid."""
     if url is None:
         return False
     try:
