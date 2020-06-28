@@ -404,7 +404,7 @@ class ProxyData:
     def __eq__(self, other):
         if isinstance(other, ProxyData):
             return ((self.host == other.host) or (
-                        self.host == other.host and self.port == other.port)) \
+                   self.host == other.host and self.port == other.port)) \
                    and self.method == other.method
         return False
 
