@@ -110,6 +110,8 @@ def is_url(url):
     """Check if url is valid."""
     if url is None:
         return False
+    # pylint: disable=bare-exempt
+    # noinspection PyBroadException
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
@@ -117,6 +119,7 @@ def is_url(url):
         return False
 
 
+# pylint: disable=too-many-arguments
 def _build_instance_hostname(schema, instance_name, prefix, postfix, casing, url):
     if is_url(url):
         return url if not str(url).endswith('/') else url[:-1]
@@ -206,8 +209,8 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
         proxy_instance_url = proxy_api_event.get(ATTR_INSTANCE_URL, None)
         if (not proxy_route
-            or not proxy_method
-            or not proxy_instance_name) and not is_url(proxy_instance_url):
+                or not proxy_method
+                or not proxy_instance_name) and not is_url(proxy_instance_url):
             return
 
         _convert_instance_resources_to_proxies(proxy_route)
