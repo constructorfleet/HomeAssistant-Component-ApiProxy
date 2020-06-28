@@ -110,12 +110,11 @@ def is_url(url):
     """Check if url is valid."""
     if url is None:
         return False
-    # pylint: disable=bare-exempt
     # noinspection PyBroadException
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
-    except:
+    except:  # pylint: disable=bare-except
         return False
 
 
