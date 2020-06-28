@@ -205,6 +205,7 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
                 conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_POSTFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
+            proxy_instance_port,
             proxy_api_event.get(ATTR_TOKEN, None),
             proxy_route
         )
