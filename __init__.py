@@ -27,6 +27,8 @@ _LOGGER = logging.getLogger(__name__)
 ARG_SUBSCRIBE_ROUTE_TOPIC = 'subscribe_route_topic'
 ARG_PUBLISH_REQUEST_ROUTES_TOPIC = 'publish_request_routes_topic'
 ARG_INSTANCE_HOSTNAME_PREFIX = 'instance_hostname_prefix'
+ARG_INSTANCE_HOSTNAME_POSTFIX = 'instance_hostname_postfix'
+ARG_INSTANCE_HOSTNAME_SCHEMA = 'instance_hostname_schema'
 ARG_INSTANCE_HOSTNAME_CASING = 'instance_hostname_casing'
 
 CASING_UPPER = 'UPPER'
@@ -34,6 +36,8 @@ CASING_LOWER = 'LOWER'
 CASING_UNCHANGED = 'UNCHANGED'
 
 DEFAULT_HOSTNAME_PREFIX = ''
+DEFAULT_HOSTNAME_POSTFIX = ''
+DEFAULT_HOSTNAME_SCHEMA = 'http'
 DEFAULT_HOSTNAME_CASING = CASING_UNCHANGED
 
 VALID_CASINGS = [
@@ -90,14 +94,18 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(ARG_PUBLISH_REQUEST_ROUTES_TOPIC): valid_publish_topic,
         vol.Optional(ARG_INSTANCE_HOSTNAME_PREFIX,
                      default=DEFAULT_HOSTNAME_PREFIX): vol.Coerce(str),
+        vol.Optional(ARG_INSTANCE_HOSTNAME_POSTFIX,
+                     default=DEFAULT_HOSTNAME_POSTFIX: vol.Coerce(str),
+        vol.Optional(ARG_INSTANCE_HOSTNAME_SCHEMA,
+                     default=DEFAULT_HOSTNAME_SCHEMA): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
             VALID_CASINGS)
     }),
 }, extra=vol.ALLOW_EXTRA)
 
 
-def _build_instance_hostname(instance_name, prefix, casing):
-    concatenated_hostname = '%s%s' % (prefix, instance_name)
+def _build_instance_hostname(schema, instance_name, prefix, postfix, casing):
+    concatenated_hostname = '%s://%s%s%s' % (schema, prefix, instance_name, postfix)
     if casing == CASING_LOWER:
         return concatenated_hostname.lower()
 
@@ -192,8 +200,10 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
             proxy_instance_name,
             proxy_method,
             _build_instance_hostname(
+                conf.get(ARG_INSTANCE_HOSTNAME_SCHEMA, DEFAULT_HOSTNAME_SCHEMA)
                 proxy_instance_name,
                 conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
+                conf.get(ARG_INSTANCE_HOSTNAME_POSTFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
             proxy_instance_port,
             proxy_api_event.get(ATTR_TOKEN, None),
