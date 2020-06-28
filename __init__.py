@@ -10,6 +10,7 @@ import itertools
 import json
 import logging
 from json import JSONDecodeError
+from urllib.parse import urlparse
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -59,6 +60,7 @@ ATTR_INSTANCE_NAME = 'instance_name'
 ATTR_INSTANCE_IP = 'instance_ip'
 ATTR_INSTANCE_PORT = 'instance_port'
 ATTR_INSTANCE_HOSTNAME = 'instance_hostname'
+ATTR_INSTANCE_URL = 'instance_url'
 ATTR_TOKEN = 'token'
 ATTR_PROXY = 'proxy'
 ATTR_RESPONSE = 'result'
@@ -104,7 +106,19 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 
-def _build_instance_hostname(schema, instance_name, prefix, postfix, casing):
+def is_url(url):
+    if url is None:
+        return False
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+
+
+def _build_instance_hostname(schema, instance_name, prefix, postfix, casing, url):
+    if is_url(url):
+        return url if not str(url).endswith('/') else url[:-1]
     concatenated_hostname = '%s://%s%s%s' % (schema, prefix, instance_name, postfix)
     if casing == CASING_LOWER:
         return concatenated_hostname.lower()
@@ -187,9 +201,12 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         """Registers a proxy received over MQTT."""
         proxy_route = proxy_api_event.get(ATTR_ROUTE)
         proxy_method = proxy_api_event.get(ATTR_METHOD, '').lower()
-        proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME).lower()
+        proxy_instance_name = proxy_api_event.get(ATTR_INSTANCE_NAME, '').lower()
         proxy_instance_port = proxy_api_event.get(ATTR_INSTANCE_PORT, 8123)
-        if not proxy_route or not proxy_method or not proxy_instance_name:
+        proxy_instance_url = proxy_api_event.get(ATTR_INSTANCE_URL, None)
+        if (not proxy_route
+            or not proxy_method
+            or not proxy_instance_name) and not is_url(proxy_instance_url):
             return
 
         _convert_instance_resources_to_proxies(proxy_route)
@@ -204,7 +221,8 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
                 proxy_instance_name,
                 conf.get(ARG_INSTANCE_HOSTNAME_PREFIX, ''),
                 conf.get(ARG_INSTANCE_HOSTNAME_POSTFIX, ''),
-                conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED)),
+                conf.get(ARG_INSTANCE_HOSTNAME_CASING, CASING_UNCHANGED),
+                proxy_instance_url),
             proxy_instance_port,
             proxy_api_event.get(ATTR_TOKEN, None),
             proxy_route
@@ -291,6 +309,8 @@ class ProxyData:
 
     def get_url(self, path):
         """Get route to connect to."""
+        if is_url(self.host):
+            return '%s%s' % (self.host, path if str(path).startswith("/") else f"/{path}")
         return '%s:%s%s' % (self.host, self.port, path)
 
     async def perform_proxy(self, request):
@@ -380,9 +400,9 @@ class ProxyData:
 
     def __eq__(self, other):
         if isinstance(other, ProxyData):
-            return self.host == other.host \
-                   and self.port == other.port \
-                   and self.method == other.method
+            return  ((self.host == other.host) or (
+                    self.host == other.host
+                    and self.port == other.port)) and self.method == other.method
         return False
 
     def __hash__(self):
@@ -497,7 +517,7 @@ class PatchRemoteApiProxy(AbstractRemoteApiProxy):
 
     async def delete(self, request, **kwargs):
         """Perform proxy."""
-        return await self.perform_proxy(request, **kwargs)
+        return await self.perform_proxy (request, **kwargs)
 
 
 class HeadRemoteApiProxy(AbstractRemoteApiProxy):
