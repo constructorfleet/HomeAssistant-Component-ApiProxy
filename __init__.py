@@ -95,7 +95,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(ARG_INSTANCE_HOSTNAME_PREFIX,
                      default=DEFAULT_HOSTNAME_PREFIX): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_POSTFIX,
-                     default=DEFAULT_HOSTNAME_POSTFIX: vol.Coerce(str),
+                     default=DEFAULT_HOSTNAME_POSTFIX): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_SCHEMA,
                      default=DEFAULT_HOSTNAME_SCHEMA): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
