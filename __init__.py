@@ -104,7 +104,7 @@ CONFIG_SCHEMA = vol.Schema({
                      default=DEFAULT_HOSTNAME_SCHEMA): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
             VALID_CASINGS),
-        vol.Optional(ARG_PROXY_BLACKLIST, default=[]): vol.All(ensure_list, [cv.string])
+        vol.Optional(ARG_PROXY_BLACKLIST, default=[]): vol.All(cv.ensure_list, [cv.string])
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -409,8 +409,8 @@ class ProxyData:
     def __eq__(self, other):
         if isinstance(other, ProxyData):
             return ((self.host == other.host) or (
-                    self.host == other.host and self.port == other.port)) \
-                   and self.method == other.method
+                self.host == other.host and self.port == other.port)) \
+                and self.method == other.method
         return False
 
     def __hash__(self):
