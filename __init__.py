@@ -32,6 +32,8 @@ ARG_INSTANCE_HOSTNAME_POSTFIX = 'instance_hostname_postfix'
 ARG_INSTANCE_HOSTNAME_SCHEMA = 'instance_hostname_schema'
 ARG_INSTANCE_HOSTNAME_CASING = 'instance_hostname_casing'
 
+ARG_PROXY_BLACKLIST = 'proxy_blacklist'
+
 CASING_UPPER = 'UPPER'
 CASING_LOWER = 'LOWER'
 CASING_UNCHANGED = 'UNCHANGED'
@@ -102,6 +104,7 @@ CONFIG_SCHEMA = vol.Schema({
                      default=DEFAULT_HOSTNAME_SCHEMA): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
             VALID_CASINGS)
+        vol.Optional(ARG_PROXY_BLACKLIST, default=[]): vol.All(ensure_list, [cv.string])
     }),
 }, extra=vol.ALLOW_EXTRA)
 
@@ -210,6 +213,8 @@ async def async_setup(hass: HomeAssistantType, config: ConfigType):
         if (not proxy_route
                 or not proxy_method
                 or not proxy_instance_name) and not is_url(proxy_instance_url):
+            return
+        if any([(blacklist in proxy_route) for blacklist in conf.get(ARG_PROXY_BLACKLIST)]):
             return
 
         _convert_instance_resources_to_proxies(proxy_route)
