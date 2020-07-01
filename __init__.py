@@ -103,7 +103,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Optional(ARG_INSTANCE_HOSTNAME_SCHEMA,
                      default=DEFAULT_HOSTNAME_SCHEMA): vol.Coerce(str),
         vol.Optional(ARG_INSTANCE_HOSTNAME_CASING, default=DEFAULT_HOSTNAME_CASING): vol.In(
-            VALID_CASINGS)
+            VALID_CASINGS),
         vol.Optional(ARG_PROXY_BLACKLIST, default=[]): vol.All(ensure_list, [cv.string])
     }),
 }, extra=vol.ALLOW_EXTRA)
